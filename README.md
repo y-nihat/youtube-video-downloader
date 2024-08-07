@@ -7,14 +7,14 @@ This Python script allows you to download YouTube videos in the highest availabl
 Before running the script, make sure you have the following dependencies installed:
 
 - Python 3.x
-- `pytube` library
+- `yt_dlp` library
 - `ffmpeg-python` library
 - FFmpeg (installed on your system)
 
 You can install the required Python libraries using pip:
 
 ```bash
-pip install pytube ffmpeg-python
+pip install yt_dlp ffmpeg-python
 ```
 
 To install FFmpeg on your system, follow the instructions for your operating system:
