@@ -1,72 +1,57 @@
 import os
-
+import argparse
 import ffmpeg
-from pytube import YouTube
+import yt_dlp
+import logging
 
+# Set up logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def download_youtube_video(link: str):
-    """This function downloads a YouTube video and merges the video and audio streams.
-
-    Args:
-        link (str): The YouTube video link to download.
-    """
     try:
-        # Create a YouTube object
-        yt = YouTube(link)
+        logging.info(f"Attempting to access video at {link}")
 
-        # Get the available video resolutions
-        resolutions = []
-        for stream in yt.streams.filter(type="video"):
-            resolutions.append(stream.resolution)
-        resolutions = list(set(resolutions))  # Remove duplicate resolutions
+        ydl_opts = {
+            'format': 'bestvideo+bestaudio/best',
+            'outtmpl': '%(title)s.%(ext)s',
+        }
 
-        # Print the available resolutions
-        print("Available resolutions:")
-        for i, resolution in enumerate(resolutions, start=1):
-            print(f"{i}. {resolution}")
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(link, download=False)
+            formats = info['formats']
 
-        # Ask the user to choose the resolution
-        choice = int(
-            input("Enter the number corresponding to the desired resolution: ")
-        )
-        selected_resolution = resolutions[choice - 1]
+            # Filter video formats and sort by resolution
+            video_formats = [f for f in formats if f.get('vcodec') != 'none']
+            video_formats.sort(key=lambda x: int(x.get('height', 0)), reverse=True)
 
-        # Get the video and audio streams
-        video_stream = yt.streams.filter(
-            type="video", resolution=selected_resolution
-        ).first()
-        audio_stream = yt.streams.filter(type="audio").first()
+            # Print available resolutions
+            print("Available resolutions:")
+            for i, format in enumerate(video_formats, start=1):
+                print(f"{i}. {format['height']}p")
 
-        # Download the video and audio
-        print(f"Downloading video: {yt.title}")
-        video_file = video_stream.download(filename="video.mp4")
-        print(f"Downloading audio: {yt.title}")
-        audio_file = audio_stream.download(filename="audio.mp4")
+            # Ask user to choose resolution
+            choice = int(input("Enter the number corresponding to the desired resolution: "))
+            selected_format = video_formats[choice - 1]
 
-        # Merge the video and audio using ffmpeg
-        print("Merging video and audio...")
-        output_file = f"{yt.title}.mp4"
-        video = ffmpeg.input(video_file)
-        audio = ffmpeg.input(audio_file)
-        output = ffmpeg.output(
-            video,
-            audio,
-            output_file,
-            vcodec="copy",
-            acodec="copy",
-            strict="experimental",
-        )
-        ffmpeg.run(output, overwrite_output=True)
+            logging.info(f"User selected resolution: {selected_format['height']}p")
 
-        # Remove the temporary video and audio files
-        os.remove(video_file)
-        os.remove(audio_file)
+            # Download video
+            ydl_opts['format'] = f"{selected_format['format_id']}+bestaudio"
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([link])
 
-        print("Video downloaded and merged successfully!")
+            print(f"Video downloaded successfully as '{info['title']}.{selected_format['ext']}'!")
 
     except Exception as e:
-        print(f"An error occurred: {str(e)}")
+        logging.error(f"An unexpected error occurred: {str(e)}", exc_info=True)
+        print(f"An unexpected error occurred: {str(e)}")
 
+def main():
+    parser = argparse.ArgumentParser(description="Download YouTube video with custom resolution selection.")
+    parser.add_argument("url", help="YouTube video URL")
+    args = parser.parse_args()
 
-video_link = "YOUTUBE_VIDEO_LINK"
-download_youtube_video(video_link)
+    download_youtube_video(args.url)
+
+if __name__ == "__main__":
+    main()
